@@ -1,0 +1,14 @@
+# Automação do WhatsApp Web (Navegador invisível)
+playwright
+
+# Interface Gráfica Moderna
+customtkinter
+darkdetect        # Ajuda o customtkinter a detectar o tema claro/escuro do sistema
+
+# Agendador de Tarefas em Segundo Plano
+apscheduler
+
+# --- PLANO FUTURO: ANÁLISE DE IMAGEM E IA (Descomente quando for usar) ---
+# opencv-python
+# google-generativeai
+# pytesseract
