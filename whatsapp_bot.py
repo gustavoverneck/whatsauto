@@ -4,16 +4,15 @@ import time
 class WhatsAppBot:
     def __init__(self):
         self.playwright = sync_playwright().start()
+        
+        # Modo "Robô Humano": Sempre visível (headless=False)
         self.context = self.playwright.chromium.launch_persistent_context(
             user_data_dir="./sessao_whatsapp",
-            headless=False,
-            args=["--disable-blink-features=AutomationControlled"]  # evita detecção
+            headless=False, # <--- Deixamos visível para enganar o sistema de segurança
+            viewport={"width": 800, "height": 600} # Janela um pouco menor para não atrapalhar sua tela
         )
-        # Obtém a página
-        if self.context.pages:
-            self.page = self.context.pages[0]
-        else:
-            self.page = self.context.new_page()
+        
+        self.page = self.context.pages[0]
 
     def iniciar_sessao(self):
         self.page.goto("https://web.whatsapp.com")
@@ -39,21 +38,46 @@ class WhatsAppBot:
         
         print("Interface principal carregada com sucesso.")
 
-    def enviar_mensagem(self, numero, texto):
-        # Monta o link
-        link = f"https://web.whatsapp.com/send?phone={numero}&text={texto}"
-        print(f"Acessando link: {link}")
+    # Adicionamos a variável "aguardar_confirmacao"
+    def enviar_mensagem(self, numero, texto, aguardar_confirmacao=False):
+        link = f"https://web.whatsapp.com/send?phone={numero}"
+        print(f"Acessando conversa do número: {numero}")
         self.page.goto(link)
         
-        # Aguarda o botão de enviar aparecer
         try:
-            self.page.wait_for_selector('span[data-icon="send"]', timeout=30000)
-            print("Botão de enviar encontrado. Clicando...")
-            self.page.click('span[data-icon="send"]')
-            time.sleep(2)
-            print("Mensagem enviada.")
-        except PlaywrightTimeoutError:
-            print("Erro: Não foi possível encontrar o botão de enviar. Verifique se o número está correto.")
+            print("Aguardando o chat carregar...")
+            caixa_de_texto = self.page.locator('footer div[contenteditable="true"]')
+            caixa_de_texto.wait_for(state="visible", timeout=45000)
+            
+            caixa_de_texto.click()
+            caixa_de_texto.fill("") # Limpa a caixa por precaução
+            
+            print("Digitando como um humano...")
+            # O TRUQUE: Separa o texto pelas quebras de linha
+            linhas = texto.split('\n')
+            
+            for i, linha in enumerate(linhas):
+                self.page.keyboard.type(linha, delay=50) # Digita a linha
+                
+                # Se não for a última linha, aperta Shift+Enter para pular a linha sem enviar!
+                if i < len(linhas) - 1:
+                    self.page.keyboard.press("Shift+Enter")
+            
+            if aguardar_confirmacao:
+                print("Modo Revisão: Aguardando você enviar a mensagem...")
+                # O robô cruza os braços e espera você apertar o Enter de verdade
+                while caixa_de_texto.inner_text().strip() != "":
+                    self.page.wait_for_timeout(1000) 
+                print("Mensagem enviada manualmente pelo usuário!")
+                
+            else:
+                print("Disparando mensagem com a tecla 'Enter'...")
+                caixa_de_texto.press("Enter")
+                time.sleep(3) 
+                print("Mensagem enviada automaticamente.")
+                
+        except Exception as e:
+            print(f"Erro: Falha na interação com o chat. Detalhes: {e}")
             raise
 
     def fechar(self):
